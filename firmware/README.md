@@ -136,8 +136,8 @@ file as a comment.
 
 | Item | Where | Status |
 |---|---|---|
-| Home pulse per servo | `HOME_US` | measured on the old board, RR leg broken, not yet in the code |
-| Min / max pulse per servo | `MIN_US`, `MAX_US` | measured except RR, code still has home ±200 |
+| Home pulse per servo | `HOME_US` | ✅ checked on the robot |
+| Min / max pulse per servo | `MIN_US`, `MAX_US` | ✅ measured (stall point − 50 µs margin), RR thigh + calf pending (leg broken) |
 | PCA9685 oscillator | `setOscillatorFrequency(25000000)` | nominal, measure a 1500 µs pulse with a scope |
 | OE pull-down on the PCA9685 board | wiring | check before adding a pull-up |
 | Servo direction (SIGN) per joint | Jetson side | compare sim vs. robot |

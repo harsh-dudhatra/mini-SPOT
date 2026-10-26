@@ -17,21 +17,23 @@ const char* NAME[NUM_SERVOS] = {"FR_shoulder", "FR_thigh", "FR_calf",
                                 "RR_shoulder", "RR_thigh", "RR_calf",
                                 "RL_shoulder", "RL_thigh", "RL_calf",}; //assign name to each servo i
 
-// LAB: home pulses from the old code, same order as CHANNEL
+// home pulses, checked on the robot, same order as CHANNEL
 const int HOME_US[NUM_SERVOS] = {1525, 1150, 1500,   // FR
                                  1650, 1700, 1500,   // FL
                                  1600, 1225, 1500,   // RR
                                  1500, 1700, 1500};  // RL
 
-// LAB: home +- 200 for now, replace with values from the limit finder
-const int MIN_US[NUM_SERVOS] = {1325,  950, 1300,   // FR
-                                1450, 1500, 1300,   // FL
-                                1400, 1025, 1300,   // RR
-                                1300, 1500, 1300};  // RL
-const int MAX_US[NUM_SERVOS] = {1725, 1350, 1700,   // FR
-                                1850, 1900, 1700,   // FL
-                                1800, 1425, 1700,   // RR
-                                1700, 1900, 1700};  // RL
+// limits = point where the servo stopped moving (limit finder, oscillator 25MHz)
+// pulled in by 50us safety margin, so the servo never presses against the stop
+// LAB: RR thigh + calf not measured (leg broken), home +- 100 until repaired
+const int MIN_US[NUM_SERVOS] = {1195,  740,  970,   // FR  measured 1145,  690,  920
+                                1050, 1100, 1150,   // FL  measured 1000, 1050, 1100
+                                1130, 1125, 1400,   // RR  measured 1080,    -,    -
+                                 520, 1200, 1110};  // RL  measured  470, 1150, 1060
+const int MAX_US[NUM_SERVOS] = {1975, 1840, 1870,   // FR  measured 2025, 1890, 1920
+                                2550, 1950, 2130,   // FL  measured 2600, 2000, 2180
+                                2510, 1325, 1600,   // RR  measured 2560,    -,    -
+                                1970, 2290, 1990};  // RL  measured 2020, 2340, 2040
 
 const int MAX_STEP = 100; // max step at a time, not letting servo jump
 
