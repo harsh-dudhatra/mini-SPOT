@@ -3,7 +3,7 @@
 
   <!-- title -->
   <text x="40" y="45" font-size="24" font-weight="bold">mini-SPOT wiring: ESP32 DevKit</text>
-  <text x="40" y="72" font-size="14" fill="#444">Changes vs. old plan: ESP32-S2 → ESP32 DevKit (SDA 21 / SCL 22) · OE now wired (GPIO25) · + BNO055 IMU · + 4 FSR foot sensors · servo channels grouped per leg</text>
+  <text x="40" y="72" font-size="14" fill="#444">Changes vs. old plan: ESP32-S2 → ESP32 DevKit (SDA 21 / SCL 22) · OE now wired (GPIO25) · + BNO055 IMU · + 4 FSR foot sensors (optional) · servo channels grouped per leg</text>
 
   <g fill="none" stroke-width="2.5" stroke-linejoin="round">
     <!-- battery + / switch / buck (servo power, red) -->
@@ -157,7 +157,7 @@
 
   <!-- FSR block -->
   <rect x="700" y="835" width="330" height="185" fill="#fff" stroke="#000" stroke-width="2" stroke-dasharray="7 4"/>
-  <text x="700" y="827" font-size="15">FSR foot sensors ×4 (voltage divider each)</text>
+  <text x="700" y="827" font-size="15">FSR foot sensors ×4 (optional, only if needed)</text>
   <text x="708" y="869" font-size="12">FR foot</text>
   <text x="708" y="899" font-size="12">FL foot</text>
   <text x="708" y="929" font-size="12">RR foot</text>
@@ -203,5 +203,5 @@
     <line x1="52" y1="842" x2="92" y2="842" stroke="#7b1fa2" stroke-width="3"/><text x="102" y="847">PCA9685 OE (LOW = servos on)</text>
     <line x1="52" y1="866" x2="92" y2="866" stroke="#8d6e63" stroke-width="3"/><text x="102" y="871">FSR analog signals (ADC1)</text>
   </g>
-  <text x="40" y="1075" font-size="12" fill="#555">1 PCA9685 · 2 Servos · 3 ESP32 DevKit · 4 Main switch · 5 LM1085 3.3 V LDO · 6 HW-439 buck · 7 BNO055 · 8 FSR ×4</text>
+  <text x="40" y="1075" font-size="12" fill="#555">1 PCA9685 · 2 Servos · 3 ESP32 DevKit · 4 Main switch · 5 LM1085 3.3 V LDO · 6 HW-439 buck · 7 BNO055 · 8 FSR ×4 (optional)</text>
 </svg>

@@ -35,7 +35,6 @@ Wiring diagram: [docs/wiring_devkit.svg](docs/wiring_devkit.svg)
 | Servo controller | PCA9685 (I2C, 16-channel PWM) |
 | Servos | 12 total, 3 per leg (HAA, HFE, KFE joints) |
 | IMU | BNO055 (I2C), being wired |
-| Foot sensors | 4 FSR, one per foot, being wired |
 | Power | 7.4V LiPo → HW-439 buck (servo power) → LM1085 3.3V (logic) |
 | Onboard compute | NVIDIA Jetson Nano |
 
@@ -66,7 +65,7 @@ HAA joints are currently locked in simulation, leaving 8 active DOF (HFE + KFE p
 | 2 | Servo command receiver (12 pulses per line, limits, step limit) | ✅ Written, robot test pending |
 | 3 | Limit finder, home + limit measurement | ✅ Done except RR leg |
 | 4 | Move to ESP32 DevKit, new wiring | 🔄 In progress |
-| 5 | Watchdog, BNO055 IMU, FSR foot sensors | ⬜ Pending |
+| 5 | Watchdog, BNO055 IMU | ⬜ Pending |
 | 6 | micro-ROS | ⬜ Pending |
 
 ---
@@ -152,7 +151,7 @@ Physics runs at 1000Hz. Controller runs at 100Hz (every 10 physics steps).
 |---|---|---|---|
 | Accelerometer | Trunk | Linear acceleration (m/s²) | BNO055 on the ESP32 I2C bus |
 | Gyroscope | Trunk | Angular velocity (rad/s) | BNO055 on the ESP32 I2C bus |
-| Foot force | Each calf | 3-axis contact force (N) | FSR per foot, ESP32 ADC |
+| Foot force | Each calf | 3-axis contact force (N) | – (simulation only) |
 
 ---
 

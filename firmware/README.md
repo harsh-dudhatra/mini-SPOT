@@ -1,15 +1,14 @@
 # Mini-SPOT firmware (ESP32)
 
-The ESP32 drives the 12 servos through a PCA9685 and (soon) reads the IMU and
-foot sensors. It talks to the Jetson Nano / laptop over USB serial.
+The ESP32 drives the 12 servos through a PCA9685 and (soon) reads the IMU.
+It talks to the Jetson Nano / laptop over USB serial.
 
 Arduino framework, built with [PlatformIO](https://platformio.org/) in VS Code.
 
 ```
 Jetson / laptop ──USB serial──▶ ESP32 ──I2C──▶ PCA9685 ──PWM──▶ 12 servos
                                   │
-                                  ├──I2C──▶ BNO055 IMU        (planned)
-                                  └──ADC──▶ 4 FSR foot sensors (planned)
+                                  └──I2C──▶ BNO055 IMU (planned)
 ```
 
 Wiring diagram: [docs/wiring_devkit.svg](../docs/wiring_devkit.svg)
@@ -53,7 +52,6 @@ pio device monitor -e esp32dev
 | I2C SDA | GPIO21 | GPIO36 |
 | I2C SCL | GPIO22 | GPIO35 |
 | PCA9685 OE (LOW = servos on) | GPIO25 | GPIO7 (not wired on the old perfboard) |
-| FSR FR / FL / RR / RL (planned) | GPIO32 / 33 / 34 / 35 | – |
 
 I2C addresses: PCA9685 `0x40`, BNO055 `0x28` or `0x29`.
 
@@ -103,7 +101,7 @@ Replies:
 
 - watchdog (stop the servos if the Jetson stops sending)
 - check that `pwm.begin()` found the PCA9685
-- BNO055 IMU readout, FSR readout
+- BNO055 IMU readout
 - micro-ROS (reason for the move to the classic ESP32)
 
 ---
