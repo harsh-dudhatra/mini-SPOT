@@ -37,9 +37,15 @@ const int MAX_US[NUM_SERVOS] = {1975, 1840, 1870,   // FR  measured 2025, 1890, 
 
 const int MAX_STEP = 100; // max step at a time, not letting servo jump
 
+// no good command for this long -> servos off (jetson crashed, cable out)
+// set to 0 to turn the watchdog off, e.g. when typing commands by hand
+const unsigned long WATCHDOG_MS = 200;
+
 int pulse[NUM_SERVOS];    // pulse each servo has right now
 int newPulse[NUM_SERVOS]; // pulse asked for in the last command
 char line[100];
+unsigned long lastCommand = 0; // millis() of the last good command
+bool outputsOn = false;        // OE LOW right now?
 
 
 bool readUsFromCommand() {
@@ -80,6 +86,13 @@ void setPulse(int i, int us) {
   pwm.writeMicroseconds(CHANNEL[i], pulse[i]);
 }
 
+// all servos on/off with the PCA9685 OE pin (LOW = on)
+void setOutputs(bool on) {
+  if (on) digitalWrite(PCA_OE_PIN, LOW);
+  else digitalWrite(PCA_OE_PIN, HIGH);
+  outputsOn = on;
+}
+
 // one short line for all servos, so it stays fast when the jetson sends often
 void printPulses() {
   Serial.print("OK");
@@ -92,11 +105,14 @@ void printPulses() {
 
 void setup() {
   pinMode(PCA_OE_PIN, OUTPUT);
-  digitalWrite(PCA_OE_PIN, HIGH);
+  setOutputs(false); // servos off until everything is set up
   Serial.begin(115200);
   Serial.setTimeout(50); // don't wait 1s for a broken line
-  Wire.begin(SDA_PIN, SCL_PIN);
-  pwm.begin();
+  Wire.begin(SDA_PIN, SCL_PIN); // must come before pwm.begin()
+  if (!pwm.begin()) {
+    Serial.println("Err: Servo Driver not found");
+    return; // stop setup here, OE stays HIGH, servos stay off
+  }
   pwm.setOscillatorFrequency(25000000); // 25MHz
   pwm.setPWMFreq(50);
   delay(10);
@@ -104,11 +120,18 @@ void setup() {
   // no step limit here, we don't know where the servos are at startup
   for (int i = 0; i < NUM_SERVOS; i++) setPulse(i, HOME_US[i]);
   delay(100);
-  digitalWrite(PCA_OE_PIN, LOW);
+  setOutputs(true);
+  lastCommand = millis(); // watchdog starts counting now
   printPulses();
 }
 
 void loop() {
+  // watchdog: no good command for too long, let the servos go limp
+  if (WATCHDOG_MS > 0 && outputsOn && millis() - lastCommand > WATCHDOG_MS) {
+    setOutputs(false);
+    Serial.println("Err: no command, servos off");
+  }
+
   if (!Serial.available()) return;
   if (!readUsFromCommand()) return;
 
@@ -118,5 +141,7 @@ void loop() {
     if (step < -MAX_STEP) step = -MAX_STEP;   // too far down, same
     setPulse(i, pulse[i] + step);
   }
+  lastCommand = millis();
+  if (!outputsOn) setOutputs(true); // commands are back after a timeout
   printPulses();
 }

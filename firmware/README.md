@@ -96,11 +96,14 @@ Replies:
 - **Per-servo limits:** `MIN_US` / `MAX_US`, measured with the limit finder.
 - **Step limit:** each servo moves at most `MAX_STEP` (100 µs) per command, so a
   big jump takes several commands.
+- **Watchdog:** no good command for `WATCHDOG_MS` (200 ms) → OE HIGH, servos go limp,
+  `Err: no command, servos off`. The next good command turns them back on.
+  For typing commands by hand, set `WATCHDOG_MS = 0`.
+- **Driver check:** if the PCA9685 doesn't answer on I2C, setup stops with
+  `Err: Servo Driver not found` and the servos stay off.
 
 ### Not done yet
 
-- watchdog (stop the servos if the Jetson stops sending)
-- check that `pwm.begin()` found the PCA9685
 - BNO055 IMU readout
 - micro-ROS (reason for the move to the classic ESP32)
 
