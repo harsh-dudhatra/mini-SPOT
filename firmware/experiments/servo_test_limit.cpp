@@ -1,4 +1,8 @@
 // Servo jogs one step at a time from serial monitor
+// Single keys, no Enter needed (hold a key to sweep):
+//   d / a  -> +10 / -10 us      D / A  -> +50 / -50 us
+//   n / p  -> next / previous servo (current goes home first)
+//   h      -> home      e -> outputs on      x -> outputs off
 
 #include<Arduino.h>
 #include<Wire.h>
@@ -34,6 +38,8 @@ const int HOME_US[NUM_SERVOS] = {1525, 1150, 1500,   // FR
 const int ABS_MAX_US = 3000; // absolute max limit
 const int ABS_MIN_US = 0; // absolute min limit
 const int MAX_STEP = 300; // max step at a time, not letting servo jump
+const int SMALL_STEP = 10; // a / d
+const int BIG_STEP = 50;   // A / D
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40);
 
@@ -74,6 +80,40 @@ void setup() {
   printStatus();
 }
 
+// new: one key = one command, no Enter
+void loop() {
+  if (!Serial.available()) return;
+  char c = Serial.read(); // read one key
+
+  if (c == 'e') { // enable outputs
+    digitalWrite(PCA_OE_PIN, LOW);
+    Serial.println("Outputs enabled");
+  } else if (c == 'x') { // disable output
+    digitalWrite(PCA_OE_PIN, HIGH);
+    Serial.println("Outputs disabled");
+  } else if (c == 'h') { // back to home pos
+    setPulse(current, HOME_US[current]);
+  } else if (c == 'n') { // next channel
+    setPulse(current, HOME_US[current]);
+    current = (current + 1) % NUM_SERVOS; // 11 wraps to 0
+  } else if (c == 'p') { // previous channel
+    setPulse(current, HOME_US[current]);
+    current = (current + NUM_SERVOS - 1) % NUM_SERVOS; // 0 wraps to 11
+  } else if (c == 'd') {
+    setPulse(current, pulse[current] + SMALL_STEP);
+  } else if (c == 'a') {
+    setPulse(current, pulse[current] - SMALL_STEP);
+  } else if (c == 'D') {
+    setPulse(current, pulse[current] + BIG_STEP);
+  } else if (c == 'A') {
+    setPulse(current, pulse[current] - BIG_STEP);
+  } else {
+    return; // any other key (also Enter) is ignored
+  }
+  printStatus();
+}
+
+/* old: typed commands like "30+" with Enter
 void loop() {
   if (!Serial.available()) return;
   String cmd = Serial.readStringUntil('\n');
@@ -113,3 +153,4 @@ void loop() {
   }
   printStatus();
 }
+*/
