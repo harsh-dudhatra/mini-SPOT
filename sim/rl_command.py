@@ -104,7 +104,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("mode", choices=("train", "eval", "drive"))
     parser.add_argument("--steps", type=int, default=5_000_000, help="train: total control steps")
-    parser.add_argument("--envs", type=int, default=8, help="train: parallel simulations")
+    parser.add_argument("--envs", type=int, default=7, help="train: parallel simulations")
     parser.add_argument("--scenario", choices=list(SCENARIOS), default="flat",
                         help="eval/drive: terrain (training always uses the full random mix)")
     parser.add_argument("--commands", nargs="+", choices=list(COMMANDS), default=list(COMMANDS),

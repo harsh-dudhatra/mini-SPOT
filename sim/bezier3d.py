@@ -1,6 +1,6 @@
 """
 3D Bezier gait from D^2-GMBC (Rahme et al. 2020, arXiv 2010.12070) for Mini-SPOT, with a
-closed-form leg IK so it is fast enough to run inside RL training.
+closed-form leg IK (sim/InverseKinematics.py) so it is fast enough to run inside RL training.
 
   command  (vx, vy, wz)  body-frame m/s and rad/s     -> forward/back, strafe, turn
        |                                                  (one gait for all directions)
@@ -15,8 +15,8 @@ closed-form leg IK so it is fast enough to run inside RL training.
        v
   IK (closed form, per leg): f_xyz -> (hip, thigh, knee) angles  -> MuJoCo position servos
 
-The planar curve Upsilon (12-point Bezier swing + sine stance) is reused from the repo's
-3dbezierhelpers.py. psi = foot clearance height, delta = virtual ground penetration depth:
+The planar curve Upsilon (12-point Bezier swing + sine stance) is defined below (moved here from
+the old 3dbezierhelpers.py demo, now in archive/). psi = foot clearance height, delta = virtual ground penetration depth:
 the two curve parameters the paper's policy sets.
 
 Yaw: the paper builds each foot's turning direction from its previous position (Eq. 6-10). Here
@@ -24,17 +24,9 @@ the foot moves tangent to the circle through its stand position, which is what t
 aim for (four-wheel-steering turn about the body centre) and has no state.
 """
 
-import importlib
-import os
-import sys
+import math
 
 import numpy as np
-import mujoco
-
-_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-if _ROOT not in sys.path:
-    sys.path.insert(0, _ROOT)
-trajectory_generator = importlib.import_module("3dbezierhelpers").trajectory_generator
 
 LEG_NAMES = ["FR", "FL", "RR", "RL"]
 TROT_LAGS = {"FR": 0.0, "FL": 0.5, "RR": 0.5, "RL": 0.0}     # diagonal pairs (paper Eq. 16)
@@ -44,82 +36,80 @@ PSI_DEFAULT = 0.04       # m, swing clearance height
 DELTA_DEFAULT = 0.005    # m, stance penetration depth
 
 
-def _rot_angle(x, z):
-    """Angle of a vector in the x-z plane, measured from straight down (-z), positive to -x.
-    A rotation about +y by q adds q to this angle (MuJoCo's thigh / knee axis)."""
-    return np.arctan2(-x, -z)
+# ---------------------------------------------------------------------------
+# Eq. (14) + Table V: Bezier curve for the SWING phase
+# ---------------------------------------------------------------------------
+def _bernstein(n: int, k: int, s: float) -> float:
+    # B_k^n(s) = C(n,k) (1-s)^(n-k) s^k   (paper's Eq. 14 lost the s^k exponent
+    # in typesetting; this is the standard Bernstein polynomial)
+    return math.comb(n, k) * (1.0 - s) ** (n - k) * s ** k
 
 
-class LegIK:
-    """Closed-form IK / FK for one 3-DOF Mini-SPOT leg, built from the MuJoCo model.
+def _control_points(tau: float, psi: float) -> np.ndarray:
+    """12 control points c_k(tau, psi) in the (q, z) plane, Table V.
+    tau = step length, psi = clearance height  (psi is RL-controlled)."""
+    return np.array([
+        (-tau,        0.0),        # c0
+        (-1.4 * tau,  0.0),        # c1
+        (-1.5 * tau,  0.9 * psi),  # c2
+        (-1.5 * tau,  0.9 * psi),  # c3
+        (-1.5 * tau,  0.9 * psi),  # c4
+        (0.0,         0.9 * psi),  # c5
+        (0.0,         0.9 * psi),  # c6
+        (0.0,         1.1 * psi),  # c7
+        (+1.5 * tau,  1.1 * psi),  # c8  (sign: see note below)
+        (+1.5 * tau,  1.1 * psi),  # c9
+        (+1.4 * tau,  0.0),        # c10
+        (+tau,        0.0),        # c11
+    ])
+    # NOTE: the extracted Table V shows negative q for c8..c10. The swing has to
+    # travel from -tau (c0) to +tau (c11), so the symmetric positive values are
+    # used here (matches the original MIT-Cheetah curve of Hyun et al.).
 
-    Frames: everything in the trunk (body) frame. The hip (HAA) joint turns about x at the hip
-    body origin; the thigh (HFE) and knee (KFE) joints turn about y.
-    """
 
-    def __init__(self, model, leg):
-        def body_pos(name):
-            return model.body_pos[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, name)].copy()
+def _swing(s_swing: float, tau: float, psi: float):
+    """Swing: Bezier curve, s_swing in [0,1] -> (q, z)."""
+    pts = _control_points(tau, psi)
+    n = len(pts) - 1
+    q = z = 0.0
+    for k in range(n + 1):
+        b = _bernstein(n, k, s_swing)
+        q += b * pts[k, 0]
+        z += b * pts[k, 1]
+    return q, z
+#maybe using matrix multiplication would be faster, but this is only called 4 times per step.
 
-        site = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, f"{leg}_foot_site")
-        self.hip = body_pos(f"{leg}_hip")                 # hip origin in the trunk frame
-        thigh, calf, foot = body_pos(f"{leg}_thigh"), body_pos(f"{leg}_calf"), model.site_pos[site]
-        self.tx, self.tz = thigh[0], thigh[2]             # thigh pivot (x, z) in the hip frame
-        self.d = thigh[1] + calf[1] + foot[1]             # sideways offset of the foot (constant)
-        self.l1 = np.array([calf[0], calf[2]])            # thigh pivot -> knee   (x, z)
-        self.l2 = np.array([foot[0], foot[2]])            # knee -> foot          (x, z)
-        A = self.l1 @ self.l2
-        B = self.l1[0] * self.l2[1] - self.l1[1] * self.l2[0]
-        self.R, self.gamma = np.hypot(A, B), np.arctan2(B, A)
-        self.ll = self.l1 @ self.l1 + self.l2 @ self.l2
+def _stance(s_stance: float, tau: float, delta: float):
+    """Stance: sinusoidal dip, s_stance in [0,1) -> (q, z).
+    Foot slides backwards from +tau to -tau while dipping by `delta`
+    (delta is RL-controlled).  z = 0 at both ends so it joins the swing curve."""
+    u = 1.0 - 2.0 * s_stance                 # +1 -> -1 over the stance
+    q = tau * u
+    z = -delta * math.cos(0.5 * math.pi * u)  # 0 at u=+-1, -delta at u=0
+    return q, z
 
-    def fk(self, q):
-        """(hip, thigh, knee) -> foot position in the trunk frame."""
-        q0, q1, q2 = q
-        c2, s2 = np.cos(q2), np.sin(q2)
-        u = self.l1 + np.array([c2 * self.l2[0] + s2 * self.l2[1], -s2 * self.l2[0] + c2 * self.l2[1]])
-        c1, s1 = np.cos(q1), np.sin(q1)
-        x = self.tx + c1 * u[0] + s1 * u[1]
-        z = self.tz - s1 * u[0] + c1 * u[1]
-        c0, s0 = np.cos(q0), np.sin(q0)
-        return self.hip + np.array([x, c0 * self.d - s0 * z, s0 * self.d + c0 * z])
 
-    def ik(self, f):
-        """Foot position in the trunk frame -> (hip, thigh, knee) angles, knee bent backward."""
-        px, py, pz = np.asarray(f, dtype=float) - self.hip
-        # hip (about x): the leg plane sits at sideways offset d; find its height zl
-        r_yz2 = py * py + pz * pz
-        zl = -np.sqrt(max(r_yz2 - self.d * self.d, 1e-9))
-        q0 = np.arctan2(py, -pz) - np.arctan2(self.d, -zl)
-        # thigh + knee (about y), target in the thigh-pivot frame
-        x, z = px - self.tx, zl - self.tz
-        k = np.clip((x * x + z * z - self.ll) / (2.0 * self.R), -1.0, 1.0)
-        q2 = self.gamma - np.arccos(k)
-        c2, s2 = np.cos(q2), np.sin(q2)
-        u = self.l1 + np.array([c2 * self.l2[0] + s2 * self.l2[1], -s2 * self.l2[0] + c2 * self.l2[1]])
-        q1 = _rot_angle(x, z) - _rot_angle(*u)
-        return np.array([q0, q1, q2])
+def trajectory_generator(S: float, tau: float, psi: float, delta: float):
+    """Upsilon(S, tau): phase S in [0,2) -> planar point (q, z).
+       S in [0,1): stance (sine curve)   S in [1,2): swing (Bezier curve)."""
+    if S < 1.0:
+        return _stance(S, tau, delta)
+    return _swing(S - 1.0, tau, psi)
 
 
 class Bezier3DGait:
-    """Command-driven foot trajectories + IK -> actuator targets (paper Algorithm 3)."""
+    """Command-driven foot trajectories (paper Algorithm 3). Never touches the MuJoCo model:
+    the legs (LegIK, one per LEG_NAMES entry) come from sim/mujoco_driver.MujocoDriver, which
+    also turns foot targets into actuator ctrl (MujocoDriver.joint_targets)."""
 
-    def __init__(self, model, t_swing=0.2, stance_to_swing=1.0):   # paper: T_swing = 0.2 s
-        self.model = model
+    def __init__(self, legs, t_swing=0.2, stance_to_swing=1.0):   # paper: T_swing = 0.2 s
         self.t_swing = t_swing
         self.t_stance = stance_to_swing * t_swing
         self.t_stride = self.t_swing + self.t_stance
         self.stance_frac = self.t_stance / self.t_stride
-        self.legs = [LegIK(model, leg) for leg in LEG_NAMES]
+        self.legs = list(legs)
         self.lags = np.array([TROT_LAGS[leg] for leg in LEG_NAMES])
         self.f_stand = np.array([leg.fk(STAND_ANGLES) for leg in self.legs])     # (4, 3)
-        # MuJoCo actuator index of (hip, thigh, knee) for each leg
-        aid = lambda n: mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, n)
-        self.act = [(aid(f"{l}_hip"), aid(f"{l}_thigh"), aid(f"{l}_calf")) for l in LEG_NAMES]
-        if min(min(a) for a in self.act) < 0:
-            raise ValueError("Bezier3DGait needs the 12-actuator model (hip, thigh, calf per leg)")
-        self.ctrl_lo = model.actuator_ctrlrange[:, 0].copy()
-        self.ctrl_hi = model.actuator_ctrlrange[:, 1].copy()
 
     def leg_phase(self, phase, i):
         """Stride phase in [0, 1) -> paper's S in [0, 2): stance 0-1, swing 1-2."""
@@ -150,12 +140,3 @@ class Bezier3DGait:
         if residual is not None:
             f += residual
         return f
-
-    def joint_targets(self, foot_targets):
-        ctrl = np.zeros(self.model.nu)
-        for leg, ids, f in zip(self.legs, self.act, foot_targets):
-            ctrl[list(ids)] = leg.ik(f)
-        return np.clip(ctrl, self.ctrl_lo, self.ctrl_hi)
-
-    def stand_ctrl(self):
-        return self.joint_targets(self.f_stand)
