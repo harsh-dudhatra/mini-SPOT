@@ -68,7 +68,7 @@ RUN pip install --no-cache-dir \
     pytest-cov==5.0.0
 
 # -----------------------------------------------------------------------------
-# REINFORCEMENT LEARNING (sim/gym_class.py)
+# REINFORCEMENT LEARNING (sim/rl_command.py, sim/rl_residual.py)
 # CPU-only torch wheel: no CUDA in the container, and the default PyPI wheel
 # drags in ~2 GB of CUDA libs on x86.
 # -----------------------------------------------------------------------------

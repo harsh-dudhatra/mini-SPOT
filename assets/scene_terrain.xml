@@ -1,5 +1,5 @@
 <!--
-  Mini-SPOT on uneven ground, used to train the RL curve modulation (sim/residual_env.py).
+  Mini-SPOT on uneven ground, used to train the RL gait corrections (sim/command_env.py).
   The heightfield values are re-randomized every episode by the environment (bumps), so the
   numbers here only set its size: 8 m x 8 m, 161 x 161 points (5 cm grid), max 0.1 m high.
   Slopes are simulated by tilting gravity (same physics as standing on an incline).

@@ -36,8 +36,7 @@ import mujoco
 from sim.bezier3d import DELTA_DEFAULT, LEG_NAMES, PSI_DEFAULT, Bezier3DGait
 from sim.mujoco_driver import MujocoDriver
 from sim.command_env import CMD_SCALE, COMMANDS, DELTA_SCALE, FLAT_XML, PSI_SCALE, RESIDUAL_LIMIT
-from sim.rl_command import KEYS, MODEL_PATH, TYPICAL
-from sim.rl_residual import load_policy
+from sim.rl_command import KEYS, MODEL_PATH, TYPICAL, load_policy
 
 # ================================================================
 #  TODO(hardware): fill these in for your robot

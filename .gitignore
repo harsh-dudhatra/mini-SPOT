@@ -46,3 +46,6 @@ models/
 quadruped_bezier_ppo*.zip
 residual_ppo*.zip
 sim/tempCodeRunnerFile.py
+
+# Archived RL checkpoints
+archive/models_walk/

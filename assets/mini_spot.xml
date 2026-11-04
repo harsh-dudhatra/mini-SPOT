@@ -42,7 +42,6 @@ Mujoco Mini Spot implementation
   - STP: Important for CAD software viewing. SPOTModell_v8.stp is the complete robot model
     (Useful for checking positions)
 
-  Note: Ignore beztest.py
 
   SENSORS (simulation only — no physical sensors on hardware yet):
   - IMU (accelerometer + gyro) on trunk: provides orientation and angular velocity
