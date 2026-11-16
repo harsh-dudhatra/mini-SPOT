@@ -41,6 +41,11 @@ services:
     volumes:
       - ..:/workspace
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - /dev/input:/dev/input        # Xbox controller (/dev/input/js0), hot-plug friendly
+
+    # Allow reading input devices (major 13 = /dev/input/*) for the gamepad
+    device_cgroup_rules:
+      - "c 13:* rmw"
 
     # -------------------------------------------------------------------------
     # NETWORK

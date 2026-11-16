@@ -79,7 +79,7 @@ class CommandGaitEnv(gym.Env):
         bump_height=(0.0, 0.06),      # m, terrain bumps (needs the terrain scene)
         slope_deg=(-15.0, 15.0),      # uphill (+) / downhill (-) along the walking direction
         side_slope_deg=(-8.0, 8.0),
-        push_force=(0.0, 0.0),        # N, horizontal push; off by default, e.g. (30, 100) to train with pushes
+        push_force=(5, 20),        # N, horizontal push; off by default, e.g. (30, 100) to train with pushes
         push_duration=0.15,           # s
         push_interval=(1.5, 3.0),     # s between pushes
         randomize=True,               # friction / mass / motor strength / noise / latency

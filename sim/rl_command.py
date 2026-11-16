@@ -1,6 +1,6 @@
 """Train / evaluate / drive the ONE policy for all movement commands (paper architecture).
 
-    python -m sim.rl_command train                     # PPO, 8 parallel sims, saves models/command_ppo.zip
+    python -m sim.rl_command train                     # PPO, 7 parallel sims, saves models/command_ppo.zip
     python -m sim.rl_command train --steps 1000000     # shorter run
     python -m sim.rl_command eval                      # plain paper gait vs gait + policy, per command
     python -m sim.rl_command eval --scenario mixed     # same on bumps + slopes
@@ -73,7 +73,7 @@ def train_ppo(env_factory, total_steps, n_envs, model_path):
 
     model = PPO(
         "MlpPolicy", venv, verbose=1,
-        n_steps=1024, batch_size=min(4096, 1024 * n_envs), n_epochs=5,
+        n_steps=1024, batch_size=1024 * n_envs // 4, n_epochs=5,
         learning_rate=3e-4, gamma=0.99, gae_lambda=0.95, clip_range=0.2, ent_coef=0.0,
         policy_kwargs=dict(net_arch=[128, 128], log_std_init=-1.0),   # start with small corrections
     )

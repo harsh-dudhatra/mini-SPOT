@@ -21,7 +21,7 @@ fill in its TODO(hardware) settings first, plus the TODO(hardware) topics / IMU 
 import numpy as np
 
 from sim.rl_deploy import (IMU_TO_BODY, DryRunLink, GaitPolicy, check_hardware, imu_to_body,
-                           parse_args, run)
+                           make_gamepad, parse_args, run)
 
 # ================================================================
 #  TODO(hardware): match the ESP32 micro-ROS firmware
@@ -104,7 +104,7 @@ def main():
     check_hardware(args.dry_run)
     policy = GaitPolicy(args.model, args.plain)
     link = DryRunLink() if args.dry_run else MicroRosLink()
-    run(link, policy)
+    run(link, policy, make_gamepad(args))
 
 
 if __name__ == "__main__":

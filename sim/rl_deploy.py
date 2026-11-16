@@ -13,7 +13,7 @@
     python -m sim.rl_deploy --port /dev/ttyUSB0 --plain      # plain paper gait, no network
     python -m sim.rl_deploy --model models/command_ckpt_249998_steps
 
-Drive commands (type + Enter): w forward  s backward  a strafe left  d strafe right
+Drive commands (type + Enter, or --gamepad: see sim/gamepad.py): w forward  s backward  a strafe left  d strafe right
                                q turn left  e turn right  x stop       Ctrl+C = stand, then quit
 
 Serial protocol (ASCII lines, readable in a serial monitor; TODO(hardware): match the ESP32 code):
@@ -37,6 +37,7 @@ from sim.bezier3d import DELTA_DEFAULT, LEG_NAMES, PSI_DEFAULT, Bezier3DGait
 from sim.mujoco_driver import MujocoDriver
 from sim.command_env import CMD_SCALE, COMMANDS, DELTA_SCALE, FLAT_XML, PSI_SCALE, RESIDUAL_LIMIT
 from sim.rl_command import KEYS, MODEL_PATH, TYPICAL, load_policy
+from sim.gamepad import QuitRequested, open_gamepad
 
 # ================================================================
 #  TODO(hardware): fill these in for your robot
@@ -218,7 +219,7 @@ def read_keyboard(policy):
         print(">> unknown command; use w a s d q e x")
 
 
-def run(link, policy):
+def run(link, policy, gamepad=None):
     dt = policy.control_dt
     max_step = MAX_JOINT_SPEED * dt
     q = policy.stand()
@@ -246,6 +247,11 @@ def run(link, policy):
             if cmd is not None:
                 policy.set_command(cmd)
             read_keyboard(policy)
+            if gamepad is not None:
+                cmd = gamepad.read_command()
+                if cmd is not None:
+                    policy.set_command(cmd)
+                    print(f">> gamepad (vx, vy, wz) = ({cmd[0]:+.2f}, {cmd[1]:+.2f}, {cmd[2]:+.2f})")
 
             target = policy.stand() if t0 - t_start < STAND_S else policy.step(grav, gyro)
             q = q + np.clip(target - q, -max_step, max_step)      # rate limit
@@ -253,6 +259,8 @@ def run(link, policy):
             time.sleep(max(0.0, dt - (time.time() - t0)))
     except KeyboardInterrupt:
         print("\n>> Ctrl+C")
+    except QuitRequested as e:
+        print(f">> {e} - stopping")
     finally:
         if fallen:                                                # don't push against the ground
             link.relax()
@@ -263,6 +271,8 @@ def run(link, policy):
                 time.sleep(dt)
             print(">> stopped in the stand pose")
         link.close()
+        if gamepad is not None:
+            gamepad.close()
 
 
 def check_hardware(dry_run):
@@ -276,7 +286,15 @@ def parse_args(description):
     parser.add_argument("--model", type=str, default=str(MODEL_PATH), help="trained model or checkpoint")
     parser.add_argument("--plain", action="store_true", help="plain paper gait, no network")
     parser.add_argument("--dry-run", action="store_true", help="no hardware: fake IMU, print servo frames")
+    parser.add_argument("--gamepad", nargs="?", const="/dev/input/js0", default=None, metavar="DEVICE",
+                        help="drive with an Xbox controller (default device /dev/input/js0)")
+    parser.add_argument("--gamepad-mix", action="store_true",
+                        help="gamepad: allow combined moves (not seen in training)")
     return parser
+
+
+def make_gamepad(args):
+    return open_gamepad(args.gamepad, args.gamepad_mix) if args.gamepad else None
 
 
 def main():
@@ -287,7 +305,7 @@ def main():
     check_hardware(args.dry_run)
     policy = GaitPolicy(args.model, args.plain)
     link = DryRunLink() if args.dry_run else SerialLink(args.port, args.baud)
-    run(link, policy)
+    run(link, policy, make_gamepad(args))
 
 
 if __name__ == "__main__":

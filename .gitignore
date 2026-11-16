@@ -41,11 +41,17 @@ docker/data/
 .venv/
 quadruped_bezier_ppo.zip
 
-# RL outputs
-models/
+# RL outputs (final sim/models/command_ppo* is tracked; intermediate checkpoints are not)
+models/*
+!sim/models/
+sim/models/*
+!sim/models/command_ppo.zip
+!sim/models/command_ppo_vecnormalize.pkl
 quadruped_bezier_ppo*.zip
 residual_ppo*.zip
 sim/tempCodeRunnerFile.py
 
-# Archived RL checkpoints
-archive/models_walk/
+# Local-only: archived code/checkpoints and tests
+archive/
+sim/models_old_archive_no_push/
+tests/
