@@ -1,0 +1,57 @@
+# =============================================================================
+# Mini-SPOT — native Python env managed by uv (alternative to docker/)
+# =============================================================================
+# Same packages as docker/Dockerfile, but PyTorch comes in two flavours:
+#
+#   NVIDIA GPU PC:   uv sync --extra cu128     (CUDA 12.8 wheels, RTX 20xx–50xx)
+#   No NVIDIA GPU:   uv sync --extra cpu       (small CPU-only wheel)
+#   Windows:         setup_windows.bat         (does the above automatically)
+#
+# Then activate .venv (or use `uv run --no-sync ...`; a plain `uv run` re-syncs
+# without the extra and would remove torch).
+#
+# Pins match the Dockerfile so the saved models in sim/models/ (pickled with
+# numpy 1.26 / SB3 2.3.2) keep loading. torch is newer than the Dockerfile's
+# 2.3.1 because recent NVIDIA cards (RTX 50xx) need CUDA 12.8 builds.
+# =============================================================================
+
+[project]
+name = "mini-spot"
+version = "0.1.0"
+requires-python = "==3.11.*"
+dependencies = [
+    "mujoco==3.1.6",
+    "numpy==1.26.4",
+    "scipy==1.13.0",
+    "matplotlib==3.9.0",
+    "PyYAML==6.0.1",
+    "pyserial==3.5",
+    "gymnasium==0.29.1",
+    "stable-baselines3==2.3.2",
+    "pytest==8.2.2",
+    "pytest-cov==5.0.0",
+]
+
+[project.optional-dependencies]
+cpu = ["torch==2.7.1"]
+cu128 = ["torch==2.7.1"]
+
+[tool.uv]
+package = false
+conflicts = [[{ extra = "cpu" }, { extra = "cu128" }]]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu128", extra = "cu128" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
