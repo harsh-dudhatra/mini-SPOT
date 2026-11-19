@@ -1,6 +1,6 @@
-"""Curriculum wrapper for CommandGaitEnv: terrain and push ranges grow with the step count.
+"""Curriculum wrapper: terrain and push ranges grow with the step count.
 
-    env = CurriculumLearner(CommandGaitEnv(), steps_weight=1e-4)
+    env = CurriculumLearner(make_env(), steps_weight=1e-4)      # make_env from sim.DDRandomisationWrapper
 
 On every reset, each range below is set to MAX_RANGES * min(1, steps * steps_weight), so it starts
 flat with no pushes and reaches full ranges after 1 / steps_weight steps. Steps are counted per env
@@ -8,7 +8,9 @@ flat with no pushes and reaches full ranges after 1 / steps_weight steps. Steps 
 """
 import gymnasium as gym
 
-# Ranges at full difficulty. Every key is a CommandGaitEnv attribute.
+from sim.DDRandomisationWrapper import DDRandomisationWrapper
+
+# Ranges at full difficulty. Every key is a DDRandomisationWrapper attribute.
 MAX_RANGES = dict(
     bump_height=(0.0, 0.06),      # m
     slope_deg=(-15.0, 15.0),      # deg
@@ -34,9 +36,11 @@ class CurriculumLearner(gym.Wrapper):
         return self.env.step(action)
 
     def reset(self, **kwargs):
-        base = self.env.unwrapped
+        dr = self.env
+        while not isinstance(dr, DDRandomisationWrapper):   # find the randomisation wrapper below us
+            if not isinstance(dr, gym.Wrapper):
+                raise TypeError("CurriculumLearner needs a DDRandomisationWrapper in the wrapper chain")
+            dr = dr.env
         for key, rng in remap_ranges(self.steps, self.steps_weight).items():
-            setattr(base, key, rng)
-        if base.hfield < 0:                          # flat scene has no bumps
-            base.bump_height = (0.0, 0.0)
+            setattr(dr, key, rng)                        # flat scene: the wrapper zeroes the bumps
         return self.env.reset(**kwargs)

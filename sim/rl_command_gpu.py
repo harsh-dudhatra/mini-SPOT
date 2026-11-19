@@ -26,7 +26,7 @@ import argparse
 import time
 from pathlib import Path
 
-from sim.command_env import CommandGaitEnv
+from sim.DDRandomisationWrapper import make_env
 from sim.rl_command import norm_path_for
 
 MODEL_PATH = Path("models") / "command_gpu_ppo"
@@ -55,7 +55,7 @@ def train(total_steps, n_envs, net_arch, model_path, n_steps, n_epochs):
     model_path.parent.mkdir(parents=True, exist_ok=True)
     prefix = model_path.name.removesuffix("_ppo") + "_ckpt"
     # "spawn" works on both Windows and Linux and keeps CUDA out of the sim workers
-    venv = make_vec_env(CommandGaitEnv, n_envs=n_envs,
+    venv = make_vec_env(make_env, n_envs=n_envs,
                         vec_env_cls=SubprocVecEnv, vec_env_kwargs=dict(start_method="spawn"))
     venv = VecNormalize(venv, norm_obs=True, norm_reward=True, gamma=0.99)
 

@@ -10,9 +10,9 @@ Works with wired, wireless-adapter and Bluetooth Xbox controllers (xpad / xpadne
 Test it alone:  python3 -m sim.gamepad
 Docker: /dev/input must be shared with the container (see docker/docker-compose.yml).
 
-The policy was trained on one movement at a time (forward OR strafe OR turn), so by default only the
-stick axis pushed furthest is used. A pushed stick maps onto that command's training range
-(e.g. forward 0.05-0.20 m/s), never to speeds the policy has not seen. --gamepad-mix allows combinations.
+By default only the stick axis pushed furthest is used (one movement at a time); --gamepad-mix allows
+combinations. A pushed stick maps linearly onto the training range of its axis in CMD_RANGES
+(e.g. vx 0 .. 0.20 m/s forward, 0 .. -0.18 m/s backward), never to speeds the policy has not seen.
 """
 import os
 import struct
@@ -21,7 +21,7 @@ import time
 
 import numpy as np
 
-from sim.command_env import COMMANDS
+from sim.command_env import CMD_RANGES
 
 JS_EVENT = struct.Struct("IhBB")          # time [ms], value, type, number
 JS_BUTTON, JS_AXIS, JS_INIT = 0x01, 0x02, 0x80
@@ -65,13 +65,12 @@ class Gamepad:
         return pressed
 
     @staticmethod
-    def _scale(s, pos_range, neg_range):
-        """Stick value in [-1, 1] -> speed inside the training range of the matching command."""
+    def _scale(s, rng):
+        """Stick value in [-1, 1] -> speed in the (low, high) training range of that axis."""
         if abs(s) < DEADZONE:
             return 0.0
         k = (abs(s) - DEADZONE) / (1.0 - DEADZONE)
-        lo, hi = sorted(map(abs, pos_range if s > 0 else neg_range))
-        return float(np.sign(s) * (lo + k * (hi - lo)))
+        return float(k * (rng[1] if s > 0 else rng[0]))
 
     def read_command(self):
         """(vx, vy, wz) when the command changed, else None. Raises QuitRequested on Back."""
@@ -83,9 +82,9 @@ class Gamepad:
         # stick up = negative axis value
         sticks = np.array([-self.axes.get(AX_LY, 0.0), -self.axes.get(AX_LX, 0.0), -self.axes.get(AX_RX, 0.0)])
         cmd = np.array([
-            self._scale(sticks[0], COMMANDS["forward"][0], COMMANDS["backward"][0]),
-            self._scale(sticks[1], COMMANDS["strafe_left"][1], COMMANDS["strafe_right"][1]),
-            self._scale(sticks[2], COMMANDS["turn_left"][2], COMMANDS["turn_right"][2]),
+            self._scale(sticks[0], CMD_RANGES["vx"]),
+            self._scale(sticks[1], CMD_RANGES["vy"]),
+            self._scale(sticks[2], CMD_RANGES["wz"]),
         ])
         if not self.mix and np.any(cmd):
             keep = np.argmax(np.abs(sticks) * (cmd != 0))

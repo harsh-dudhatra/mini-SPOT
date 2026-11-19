@@ -35,7 +35,7 @@ import mujoco
 
 from sim.bezier3d import DELTA_DEFAULT, LEG_NAMES, PSI_DEFAULT, Bezier3DGait
 from sim.mujoco_driver import MujocoDriver
-from sim.command_env import CMD_SCALE, COMMANDS, DELTA_SCALE, FLAT_XML, PSI_SCALE, RESIDUAL_LIMIT
+from sim.command_env import CMD_HIGH, CMD_LOW, CMD_SCALE, DELTA_SCALE, FLAT_XML, PSI_SCALE, RESIDUAL_LIMIT
 from sim.rl_command import KEYS, MODEL_PATH, TYPICAL, load_policy
 from sim.gamepad import QuitRequested, open_gamepad
 
@@ -83,9 +83,6 @@ STAND_S = 2.0                      # hold the stand pose this long before the ga
 MAX_JOINT_SPEED = 8.0              # rad/s, per-joint rate limit on the commanded angles
 TILT_STOP = -0.5                   # gravity z above this (body tilted > 60 deg) -> relax and quit
 IMU_TIMEOUT_S = 0.2                # no IMU data for this long -> stand and quit
-CMD_LIMITS = np.array([[min(r[0][0] for r in COMMANDS.values()), max(r[0][1] for r in COMMANDS.values())],
-                       [min(r[1][0] for r in COMMANDS.values()), max(r[1][1] for r in COMMANDS.values())],
-                       [min(r[2][0] for r in COMMANDS.values()), max(r[2][1] for r in COMMANDS.values())]])
 
 
 class GaitPolicy:
@@ -104,7 +101,7 @@ class GaitPolicy:
         self.cmd = np.zeros(3)
 
     def set_command(self, cmd):
-        self.cmd = np.clip(np.asarray(cmd, dtype=float), CMD_LIMITS[:, 0], CMD_LIMITS[:, 1])
+        self.cmd = np.clip(np.asarray(cmd, dtype=float), CMD_LOW, CMD_HIGH)
 
     def stand(self):
         return self.driver.joint_targets(self.gen.f_stand)

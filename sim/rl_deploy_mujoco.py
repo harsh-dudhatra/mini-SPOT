@@ -24,7 +24,7 @@ import numpy as np
 import mujoco
 
 import sim.rl_deploy as deploy
-from sim.command_env import CommandGaitEnv
+from sim.DDRandomisationWrapper import make_env
 from sim.rl_command import SCENARIOS
 
 
@@ -32,8 +32,9 @@ class MujocoLink:
     """Same interface as SerialLink: read_imu(), send_servos(deg), read_command(), relax(), close()."""
 
     def __init__(self, policy, scenario="flat", viewer=True, randomize=False, imu_delay=0, seed=None):
-        self.env = CommandGaitEnv(randomize=randomize, max_episode_s=1e9, **SCENARIOS[scenario])
-        self.env.reset(seed=seed)                                 # builds terrain / slope, stands, settles
+        self.wrapped = make_env(randomize=randomize, max_episode_s=1e9, **SCENARIOS[scenario])
+        self.wrapped.reset(seed=seed)                             # builds terrain / slope, stands, settles
+        self.env = self.wrapped.unwrapped
         self.model, self.data = self.env.model, self.env.data
         self.names = policy.names                                 # actuator order of the deploy code
         self.n_sim = max(1, round(policy.control_dt / self.model.opt.timestep))
@@ -89,7 +90,7 @@ class MujocoLink:
     def close(self):
         if self.viewer is not None:
             self.viewer.close()
-        self.env.close()
+        self.wrapped.close()
 
 
 def main():

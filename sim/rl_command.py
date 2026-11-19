@@ -13,7 +13,8 @@ Drive commands (type + Enter):  w forward   s backward   a strafe left   d straf
 
 Ctrl+C during training saves to models/command_ppo_interrupted; checkpoints every 250 k steps
 (models/command_ckpt_*) can be loaded with --model.
-See sim/command_env.py (environment) and sim/bezier3d.py (3D Bezier gait + IK).
+See sim/command_env.py (environment), sim/DDRandomisationWrapper.py (terrain / pushes / dynamics
+randomisation) and sim/bezier3d.py (3D Bezier gait + IK).
 """
 import argparse
 import select
@@ -23,7 +24,7 @@ from pathlib import Path
 
 import numpy as np
 
-from sim.command_env import COMMANDS, CommandGaitEnv
+from sim.DDRandomisationWrapper import make_env
 
 MODEL_PATH = Path("models") / "command_ppo"
 
@@ -40,8 +41,16 @@ SCENARIOS = {                     # fixed test conditions (robot dynamics still 
     "mixed":     dict(),          # the training distribution: everything at once
 }
 
-# typical command used for eval / drive: the middle of each training range
-TYPICAL = {name: tuple(float(np.mean(r)) for r in rng) for name, rng in COMMANDS.items()}
+# named (vx, vy, wz) presets for eval / drive (the middle of the old per-command ranges)
+TYPICAL = {
+    "forward":      (0.125, 0.0, 0.0),
+    "backward":     (-0.115, 0.0, 0.0),
+    "strafe_left":  (0.0, 0.08, 0.0),
+    "strafe_right": (0.0, -0.08, 0.0),
+    "turn_left":    (0.0, 0.0, 0.4),
+    "turn_right":   (0.0, 0.0, -0.4),
+    "stand":        (0.0, 0.0, 0.0),
+}
 KEYS = {"w": "forward", "s": "backward", "a": "strafe_left", "d": "strafe_right",
         "q": "turn_left", "e": "turn_right", "x": "stand", "stop": "stand",
         "left": "strafe_left", "right": "strafe_right",
@@ -49,7 +58,7 @@ KEYS = {"w": "forward", "s": "backward", "a": "strafe_left", "d": "strafe_right"
 
 
 def train(total_steps, n_envs):
-    train_ppo(CommandGaitEnv, total_steps, n_envs, MODEL_PATH)
+    train_ppo(make_env, total_steps, n_envs, MODEL_PATH)
 
 
 def train_ppo(env_factory, total_steps, n_envs, model_path):
@@ -129,12 +138,13 @@ def run(act, command, scenario, episodes):
     """Returns (episodes survived, mean achieved (vx, vy, wz) after the first second)."""
     alive, vels = 0, []
     for ep in range(episodes):
-        env = CommandGaitEnv(command=TYPICAL[command], **SCENARIOS[scenario])
+        env = make_env(command=TYPICAL[command], **SCENARIOS[scenario])
         obs, _ = env.reset(seed=2000 + ep)
-        t0 = env.data.time
+        data = env.unwrapped.data
+        t0 = data.time
         while True:
             obs, _, term, trunc, info = env.step(act(obs))
-            if env.data.time - t0 > 1.0:
+            if data.time - t0 > 1.0:
                 vels.append(info["vel"])
             if term or trunc:
                 break
@@ -157,8 +167,9 @@ def evaluate(scenario, episodes, model_path, commands):
 
 
 def drive(scenario, model_path, plain):
-    env = CommandGaitEnv(render_mode="human", command=TYPICAL["stand"],
-                         **dict(SCENARIOS[scenario], max_episode_s=1e9))
+    env = make_env(render_mode="human", command=TYPICAL["stand"],
+                   **dict(SCENARIOS[scenario], max_episode_s=1e9))
+    base = env.unwrapped
     act = plain_policy() if plain else load_policy(model_path)
     obs, _ = env.reset()
     print(__doc__.split("Drive commands")[1].split("Ctrl+C")[0].strip())
@@ -169,7 +180,7 @@ def drive(scenario, model_path, plain):
             line = sys.stdin.readline().strip().lower().replace("_", " ")
             name = KEYS.get(line, line.replace(" ", "_"))
             if name in TYPICAL:
-                env.set_command(TYPICAL[name], name)
+                base.set_command(TYPICAL[name], name)
                 print(f">> {name}  (vx, vy, wz) = {TYPICAL[name]}")
             elif line:
                 print(">> unknown command; use w a s d q e x")
@@ -177,8 +188,8 @@ def drive(scenario, model_path, plain):
         if term:
             print(">> fell - resetting")
             obs, _ = env.reset()
-            env.set_command(TYPICAL["stand"], "stand")
-        time.sleep(max(0.0, env.control_dt - (time.time() - t0)))
+            base.set_command(TYPICAL["stand"], "stand")
+        time.sleep(max(0.0, base.control_dt - (time.time() - t0)))
 
 
 def main():
@@ -188,7 +199,7 @@ def main():
     parser.add_argument("--envs", type=int, default=7, help="train: parallel simulations")
     parser.add_argument("--scenario", choices=list(SCENARIOS), default="flat",
                         help="eval/drive: terrain (training always uses the full random mix)")
-    parser.add_argument("--commands", nargs="+", choices=list(COMMANDS), default=list(COMMANDS),
+    parser.add_argument("--commands", nargs="+", choices=list(TYPICAL), default=list(TYPICAL),
                         help="eval: which commands")
     parser.add_argument("--episodes", type=int, default=6, help="eval: episodes per command")
     parser.add_argument("--model", type=str, default=str(MODEL_PATH), help="eval/drive: model or checkpoint")
