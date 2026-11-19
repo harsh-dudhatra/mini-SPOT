@@ -11,8 +11,6 @@ Jetson / laptop ──USB serial──▶ ESP32 ──I2C──▶ PCA9685 ─�
                                   └──I2C──▶ BNO055 IMU (planned)
 ```
 
-Wiring diagram: [docs/wiring_devkit.svg](../docs/wiring_devkit.svg)
-
 ---
 
 ## Folder layout
