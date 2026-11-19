@@ -7,7 +7,7 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
 const int NUM_SERVOS = 12; // total 12 servos
 // order per leg: shoulder, thigh, calf
-// one PCA header block per leg (ch 3, 7, 11, 15 free)  
+// one PCA header block per leg (ch 3, 7, 11, 15 free)
 const int CHANNEL[NUM_SERVOS] = { 0,  1,  2,   // FR
                                   4,  5,  6,   // FL
                                   8,  9, 10,   // RR
@@ -39,7 +39,7 @@ const int MAX_STEP = 100; // max step at a time, not letting servo jump
 
 // no good command for this long -> servos off (jetson crashed, cable out)
 // set to 0 to turn the watchdog off, e.g. when typing commands by hand
-const unsigned long WATCHDOG_MS = 200;
+const unsigned long WATCHDOG_MS = 0;
 
 int pulse[NUM_SERVOS];    // pulse each servo has right now
 int newPulse[NUM_SERVOS]; // pulse asked for in the last command
