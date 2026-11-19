@@ -11,8 +11,6 @@ Jetson / laptop ──USB serial──▶ ESP32 ──I2C──▶ PCA9685 ─�
                                   └──I2C──▶ BNO055 IMU (planned)
 ```
 
-Wiring diagram: [docs/wiring_devkit.svg](../docs/wiring_devkit.svg)
-
 ---
 
 ## Folder layout
@@ -96,11 +94,14 @@ Replies:
 - **Per-servo limits:** `MIN_US` / `MAX_US`, measured with the limit finder.
 - **Step limit:** each servo moves at most `MAX_STEP` (100 µs) per command, so a
   big jump takes several commands.
+- **Watchdog:** no good command for `WATCHDOG_MS` (200 ms) → OE HIGH, servos go limp,
+  `Err: no command, servos off`. The next good command turns them back on.
+  For typing commands by hand, set `WATCHDOG_MS = 0`.
+- **Driver check:** if the PCA9685 doesn't answer on I2C, setup stops with
+  `Err: Servo Driver not found` and the servos stay off.
 
 ### Not done yet
 
-- watchdog (stop the servos if the Jetson stops sending)
-- check that `pwm.begin()` found the PCA9685
 - BNO055 IMU readout
 - micro-ROS (reason for the move to the classic ESP32)
 
@@ -136,8 +137,8 @@ file as a comment.
 
 | Item | Where | Status |
 |---|---|---|
-| Home pulse per servo | `HOME_US` | measured on the old board, RR leg broken, not yet in the code |
-| Min / max pulse per servo | `MIN_US`, `MAX_US` | measured except RR, code still has home ±200 |
+| Home pulse per servo | `HOME_US` | ✅ checked on the robot |
+| Min / max pulse per servo | `MIN_US`, `MAX_US` | ✅ measured (stall point − 50 µs margin), RR thigh + calf pending (leg broken) |
 | PCA9685 oscillator | `setOscillatorFrequency(25000000)` | nominal, measure a 1500 µs pulse with a scope |
 | OE pull-down on the PCA9685 board | wiring | check before adding a pull-up |
 | Servo direction (SIGN) per joint | Jetson side | compare sim vs. robot |
