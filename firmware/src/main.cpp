@@ -1,13 +1,19 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <Adafruit_PWMServoDriver.h>
+#include <Adafruit_BNO055.h>
 #include "board_pins.h"
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
+Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28, &Wire);
+
+const unsigned long IMU_MS = 20; // 50 Hz, same as the control rate
+unsigned long lastImu = 0;       // millis() of the last IMU line
+bool imuOk = false;              // false -> no IMU lines, servos still work
 
 const int NUM_SERVOS = 12; // total 12 servos
 // order per leg: shoulder, thigh, calf
-// one PCA header block per leg (ch 3, 7, 11, 15 free)
+
 const int CHANNEL[NUM_SERVOS] = { 0,  1,  2,   // FR
                                   4,  5,  6,   // FL
                                   8,  9, 10,   // RR
@@ -103,12 +109,29 @@ void printPulses() {
   Serial.println();
 }
 
+void printImu() {
+  imu::Vector<3> g = bno.getVector(Adafruit_BNO055::VECTOR_GRAVITY);   // m/s^2
+  imu::Vector<3> w = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE); // deg/s
+  Serial.print("I,");
+  Serial.print(g.x(), 2); Serial.print(",");
+  Serial.print(g.y(), 2); Serial.print(",");
+  Serial.print(g.z(), 2); Serial.print(",");
+  Serial.print(w.x(), 2); Serial.print(",");
+  Serial.print(w.y(), 2); Serial.print(",");
+  Serial.println(w.z(), 2);
+}
+
 void setup() {
   pinMode(PCA_OE_PIN, OUTPUT);
   setOutputs(false); // servos off until everything is set up
   Serial.begin(115200);
   Serial.setTimeout(50); // don't wait 1s for a broken line
   Wire.begin(SDA_PIN, SCL_PIN); // must come before pwm.begin()
+
+  imuOk = bno.begin(OPERATION_MODE_IMUPLUS);
+  if (imuOk) bno.setExtCrystalUse(true); // breakout has a 32 kHz crystal
+  else Serial.println("Err: BNO055 not found, no IMU data");
+
   if (!pwm.begin()) {
     Serial.println("Err: Servo Driver not found");
     return; // stop setup here, OE stays HIGH, servos stay off
@@ -130,6 +153,11 @@ void loop() {
   if (WATCHDOG_MS > 0 && outputsOn && millis() - lastCommand > WATCHDOG_MS) {
     setOutputs(false);
     Serial.println("Err: no command, servos off");
+  }
+
+  if (imuOk && millis() - lastImu >= IMU_MS) {
+    lastImu = millis();
+    printImu();
   }
 
   if (!Serial.available()) return;
