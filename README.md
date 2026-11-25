@@ -23,8 +23,6 @@ The project has two parts, split by where the code runs:
 | **1. Simulation & control** | Jetson Nano / laptop (Docker) | `docker/`, `assets/`, `sim/`, `tests/` | this README |
 | **2. Firmware** | ESP32 DevKit | `firmware/` | [firmware/README.md](firmware/README.md) |
 
-Wiring diagram: [docs/wiring_devkit.svg](docs/wiring_devkit.svg)
-
 ---
 
 ## Hardware
@@ -160,8 +158,6 @@ Physics runs at 1000Hz. Controller runs at 100Hz (every 10 physics steps).
 ```
 mini-SPOT/
 ├── README.md                   ← this file (overview + Part 1)
-├── docs/
-│   └── wiring_devkit.svg       ← wiring diagram (ESP32 DevKit)
 │
 │   Part 1: simulation & control (Jetson / laptop)
 ├── run.sh                      ← one-command start (X11 + container)
