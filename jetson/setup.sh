@@ -28,6 +28,7 @@ step "system packages:"
 sudo apt-get update
 install_apt "git"
 install_apt "curl"
+install_apt "python3-venv"
 
 step "serial access:"
 if groups "$USER" | grep -qw dialout; then
@@ -52,11 +53,11 @@ else
 fi
 
 build_uv() {
-  if [ -f "$HOME/pyproject.toml" ]; then
+  if [ -f "$HOME/mini-SPOT/pyproject.toml" ]; then
     step "found the file."
-    uv sync --extra cpu --project "$HOME"
+    uv sync --extra cpu --project "$HOME/mini-SPOT"
   else
-    step "pyproject.toml not found in $HOME."
+    step "pyproject.toml not found in $HOME/mini-SPOT."
   fi
 }
 
@@ -69,4 +70,26 @@ else
   step "uv successfully installed."
   build_uv
 fi
+
+if [ -f "/etc/udev/rules.d/99-mini-spot.rules" ]; then
+  step "udev rules for mini-spot already exists."
+else
+  step "adding udev rules for mini-spot."
+  sudo tee /etc/udev/rules.d/99-mini-spot.rules > /dev/null << 'EOF'
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", SYMLINK+="mini-spot"
+EOF
+  step "udev rules added."
+  sudo udevadm control --reload-rules
+  sudo udevadm trigger
+fi
+
+if dpkg -s tailscale > /dev/null; then
+  step "tailscale is already installed"
+else
+  step "installing tailscale..."
+  curl -fsSL https://tailscale.com/install.sh | sh
+  step "tailscale installed."
+  step "for further setup run <sudo tailscale up>"
+fi
+
 
