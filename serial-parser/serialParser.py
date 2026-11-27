@@ -7,7 +7,7 @@ import time
 import math
 import serial
 
-PORT = "/dev/ttyUSB0"
+PORT = "/dev/mini-spot"
 BAUD = 115200  # same as Serial.begin() in main.cpp
 
 RATE_HZ = 50
